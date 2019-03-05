@@ -1,0 +1,11 @@
+name: kaudruck
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy
+  - pandas
+  - jupyterlab
+  - python=3.6
+  - matplotplib
+  - scikit-image

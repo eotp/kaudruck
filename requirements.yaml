@@ -5,7 +5,7 @@ channels:
 dependencies:
   - numpy
   - pandas
-  - jupyterlab
+  - notebook
   - python=3.6
-  - matplotplib
+  - matplotlib
   - scikit-image

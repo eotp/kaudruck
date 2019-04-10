@@ -1,13 +1,18 @@
 from skimage import io
 import numpy as np
 import matplotlib.pyplot as plt
+import json
 
 class KauDruck():
     def __init__(self, image_path, aoi=None, aor=None, threshold=0.3):
         self.img = self.load_img(image_path)
+        self.force_correction_table_path = '../models/force_correction.json' 
+        self.force_correction_data = self._load_force_correction_table()
+        self.force_correction_model = self._fit_force_correction()
+        
         self.img = self.img / 255   # scale image between 0 and 1
         self.area_corr_fact = 1.0021
-        self.force_aor = 50         # Newtopn
+        self.force_aor = 50         # Newton
         if aoi is None:
             self.aoi = self.img
             
@@ -23,6 +28,17 @@ class KauDruck():
         img = io.imread(path_to_file)
         return img
     
+    def _load_force_correction_table(self):
+        with open(self.force_correction_table_path) as f:
+            force_correction_data = json.load(f)
+        return force_correction_data
+    def _fit_force_correction(self):
+        x = self.force_correction_data['x_computed']
+        y = self.force_correction_data['y_measured']
+        z = np.polyfit(x, y, 2)
+        p = np.poly1d(z)
+        return p
+
     def crop_img(self, img, xy, height, width):
         img_cropped = img[xy[1]:xy[1]+height, xy[0]:xy[0]+width]
         
@@ -38,8 +54,6 @@ class KauDruck():
         if ax is None:
             fig, ax = plt.subplots()
         ax.imshow(self.img, *args, **kwargs)
-        
-        
         
         if self.aoi is not None:
             params={'color'     : 'green' , 
@@ -98,16 +112,12 @@ class KauDruck():
     def set_aor_force(self, force_N):
         self.force_aor = force_N
     
-    
-    
     def compute_area_mm(self, area_pixel):
         area_mm = ((25.4/800)**2 * area_pixel) / self.area_corr_fact
         return area_mm
     
     def compute_pressure(self, force, area):
         return force / area
-        
-    
     
     def run_analysis(self):
         
@@ -145,6 +155,11 @@ class KauDruck():
         self.aoi_pressure = self.compute_pressure(force=self.force_aoi, 
                                                    area=area_aoi_corrected)
         
+        self.force_aoi_corrected =  self.force_correction_model(self.force_aoi)
+        
+        self.aoi_pressure_corrected = self.compute_pressure(force=self.force_aoi_corrected,
+                                                            area=area_aoi_corrected)
+        
 
         print(f'\nArea of interest')
         print(f'------------------------------')
@@ -155,6 +170,8 @@ class KauDruck():
         print(f'Fläche (mm, korrigiert): {np.round(area_aoi_corrected,2)}')
         print(f'Kraft (N):               {np.round(self.force_aoi,2)}')
         print(f'Druck (MPa):             {np.round(self.aoi_pressure,2)}')
+        print(f'Kraft (N, korrigiert):   {np.round(self.force_aoi_corrected,2)}')
+        print(f'Druck (MPa, korrigiert): {np.round(self.aoi_pressure_corrected,2)}')
 
          
 def plot_aoi_aor(kd):
